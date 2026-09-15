@@ -3095,12 +3095,14 @@ static s32 wl_cp_ie(struct wl_cfg80211_priv *wl, u8 *dst, u16 dst_size)
 {
 	struct wl_cfg80211_ie *ie = wl_to_ie(wl);
 	s32 err = 0;
+	u16 i;
 
 	if (ie->offset > dst_size) {
 		WL_ERR(("dst_size is not enough\n"));
 		return -ENOSPC;
 	}
-	memcpy(dst, &ie->buf[0], ie->offset);
+	for (i = 0; i < ie->offset; i++)
+		((volatile u8 *)dst)[i] = ie->buf[i];
 
 	return err;
 }
