@@ -1,6 +1,6 @@
-# Broadcom BCM4331 wl driver for Linux 7.x
+# Broadcom BCM4331 wl driver for Linux
 
-Broadcom's `wl` driver patched for Ubuntu 24.04 HWE 7.0 kernels.
+Broadcom's `wl` driver patched for current Ubuntu 24.04 HWE kernels (7.x as of now).
 Tested on a MacBook Pro mid-2012 (BCM4331).
 
 ## Install
@@ -12,8 +12,8 @@ curl -fsSL https://dl.psibla.de/broadcom | sh
 Or from a clone:
 
 ```bash
-git clone https://github.com/Trentyn/broadcom-wl-linux6.git
-cd broadcom-wl-linux6
+git clone https://github.com/Trentyn/broadcom-wl-bcm4331.git
+cd broadcom-wl-bcm4331
 sudo bash install.sh
 ```
 

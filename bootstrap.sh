@@ -1,9 +1,9 @@
 #!/bin/sh
 set -eu
 
-REPO_URL="${REPO_URL:-https://github.com/Trentyn/broadcom-wl-linux6.git}"
+REPO_URL="${REPO_URL:-https://github.com/Trentyn/broadcom-wl-bcm4331.git}"
 REF="${REF:-}"
-INSTALL_DIR="${INSTALL_DIR:-/tmp/broadcom-wl-linux6}"
+INSTALL_DIR="${INSTALL_DIR:-/tmp/broadcom-wl-bcm4331}"
 
 log() {
     printf '%s\n' "==> $*"
