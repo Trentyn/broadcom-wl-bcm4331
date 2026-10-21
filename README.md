@@ -28,3 +28,7 @@ Options: `REF=<branch|tag|SHA>` for the one-liner, `KERNEL_SCOPE=running` to bui
 - **6.x kernels** still build but are not supported.
 
 Check the build for all installed kernels and the running driver with `./verify.sh`.
+
+## License
+
+Mixed: the Broadcom blob is proprietary (`lib/LICENSE.txt`), the driver sources keep Broadcom's ISC-style license, the scripts are ISC. See [LICENSE](LICENSE).
