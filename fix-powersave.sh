@@ -46,15 +46,26 @@ fi
 
 echo "==> Writing NetworkManager config..."
 mkdir -p /etc/NetworkManager/conf.d
-tee /etc/NetworkManager/conf.d/99-wifi-powersave-off.conf > /dev/null <<'CONF'
-[connection]
-wifi.powersave = 2
-CONF
-
+# conf.d files are read in alphabetical order and later files win, so this
+# name has to sort after Ubuntu's default-wifi-powersave-on.conf. The old
+# 99-wifi-powersave-off.conf sorted before it and had no effect.
+rm -f /etc/NetworkManager/conf.d/99-wifi-powersave-off.conf
 tee /etc/NetworkManager/conf.d/wifi-powersave-off.conf > /dev/null <<'CONF'
 [connection]
 wifi.powersave = 2
 CONF
+
+echo "==> Writing TLP config..."
+# TLP defaults to WIFI_PWR_ON_BAT=on and reapplies it after NetworkManager and
+# on every AC/battery switch, which turns power saving back on.
+mkdir -p /etc/tlp.d
+tee /etc/tlp.d/99-broadcom-wl.conf > /dev/null <<'CONF'
+WIFI_PWR_ON_AC=off
+WIFI_PWR_ON_BAT=off
+CONF
+if command -v tlp &>/dev/null; then
+    tlp start >/dev/null 2>&1 || true
+fi
 
 echo "==> Writing udev rule for persistence..."
 mkdir -p /etc/udev/rules.d

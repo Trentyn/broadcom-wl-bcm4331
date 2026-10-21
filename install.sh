@@ -40,6 +40,7 @@ install_missing_dependencies() {
     fi
 
     echo "==> Installing missing build dependencies: ${missing[*]}"
+    apt-get update
     apt-get install -y "${missing[@]}"
 }
 
@@ -88,7 +89,11 @@ selected_kernels() {
 
 rebuild_for_selected_kernels() {
     local kver
+    local running
     local built_any=0
+    local failed=()
+
+    running="$(uname -r)"
 
     while IFS= read -r kver; do
         [[ -n "$kver" ]] || continue
@@ -99,14 +104,27 @@ rebuild_for_selected_kernels() {
         fi
 
         echo "==> Building and installing via DKMS for ${kver}..."
-        dkms build -m "${DRIVER_NAME}" -v "${DRIVER_VERSION}" -k "${kver}"
-        dkms install -m "${DRIVER_NAME}" -v "${DRIVER_VERSION}" -k "${kver}" --force
-        built_any=1
+        if dkms build -m "${DRIVER_NAME}" -v "${DRIVER_VERSION}" -k "${kver}" \
+            && dkms install -m "${DRIVER_NAME}" -v "${DRIVER_VERSION}" -k "${kver}" --force; then
+            built_any=1
+        elif [[ "$kver" == "$running" ]]; then
+            echo "DKMS build failed for the running kernel ${kver}."
+            exit 1
+        else
+            # Leftover headers of an old kernel must not block the install
+            # for the kernel that is actually in use.
+            echo "Warning: DKMS build failed for ${kver}; continuing."
+            failed+=("$kver")
+        fi
     done < <(selected_kernels)
 
     if ((built_any == 0)); then
         echo "No selected kernels with headers were found under /lib/modules."
         exit 1
+    fi
+
+    if ((${#failed[@]} > 0)); then
+        echo "Warning: wl was not built for: ${failed[*]}"
     fi
 }
 
@@ -125,7 +143,7 @@ run_smoke_checks() {
 
     for attempt in $(seq 1 20); do
         iface="$(detect_wifi_iface || true)"
-        if lsmod | grep -q '^wl\b' && [[ -n "$iface" ]]; then
+        if [[ -d /sys/module/wl ]] && [[ -n "$iface" ]]; then
             echo "==> Smoke checks passed on interface ${iface}."
             return
         fi
@@ -134,7 +152,7 @@ run_smoke_checks() {
     done
 
     iface="$(detect_wifi_iface || true)"
-    if lsmod | grep -q '^wl\b' && [[ -n "$iface" ]]; then
+    if [[ -d /sys/module/wl ]] && [[ -n "$iface" ]]; then
         echo "==> Smoke checks passed on interface ${iface}."
         return
     fi
@@ -157,7 +175,15 @@ dkms remove "${DRIVER_NAME}/${DRIVER_VERSION}" --all 2>/dev/null || true
 
 echo "==> Copying source to DKMS tree..."
 rm -rf "$DKMS_SRC"
-cp -r "$SCRIPT_DIR" "$DKMS_SRC"
+mkdir -p "$DKMS_SRC"
+# Copy only the driver sources, not git metadata or local build output.
+tar -C "$SCRIPT_DIR" \
+    --exclude=.git --exclude=.agents --exclude=.codex \
+    --exclude='*.o' --exclude='*.ko' --exclude='*.ko.zst' --exclude='*.cmd' \
+    --exclude='*.mod' --exclude='*.mod.c' --exclude='*.d' \
+    --exclude=modules.order --exclude=Module.symvers \
+    --exclude=.cache.mk --exclude=.tmp_versions \
+    -cf - . | tar -C "$DKMS_SRC" -xf -
 
 echo "==> Registering source with DKMS..."
 dkms add -m "${DRIVER_NAME}" -v "${DRIVER_VERSION}"

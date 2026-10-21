@@ -151,7 +151,15 @@ ifeq "$(GE_49)" "1"
 ccflags-y          += -Wno-date-time
 endif
 
-ldflags-y          := $(src)/lib/wlc_hybrid.o_shipped
+# The shipped blob does not pass objtool (kernels with CONFIG_KLP_BUILD or IBT
+# run objtool on the linked wl.o). Let objtool annotate the open wrapper
+# objects first, then merge the blob in a second link without objtool, so the
+# kernel can still patch return thunks and retpolines in the wrapper code.
+WL_BLOB            := $(src)/lib/wlc_hybrid.o_shipped
+override cmd_ld_multi_m = $(LD) $(ld_flags) -r -o $@ @$< $(cmd_objtool) ; \
+	mv -f $@ $(@D)/.$(@F).open ; \
+	$(LD) $(ld_flags) -r -o $@ $(@D)/.$(@F).open $(WL_BLOB) ; \
+	rm -f $(@D)/.$(@F).open
 
 KBASE              ?= /lib/modules/`uname -r`
 KBUILD_DIR         ?= $(KBASE)/build
@@ -162,13 +170,13 @@ CROSS_TOOLS        = /path/to/tools
 CROSS_KBUILD_DIR   = /path/to/kernel/tree
 
 all:
-	KBUILD_NOPEDANTIC=1 make cmd_objtool= -C $(KBUILD_DIR) M=`pwd`
+	KBUILD_NOPEDANTIC=1 make -C $(KBUILD_DIR) M=`pwd`
 
 cross:
-	KBUILD_NOPEDANTIC=1 make cmd_objtool= CROSS_COMPILE=${CROSS_TOOLS} -C $(CROSS_KBUILD_DIR) M=`pwd`
+	KBUILD_NOPEDANTIC=1 make CROSS_COMPILE=${CROSS_TOOLS} -C $(CROSS_KBUILD_DIR) M=`pwd`
 
 clean:
-	KBUILD_NOPEDANTIC=1 make cmd_objtool= -C $(KBUILD_DIR) M=`pwd` clean
+	KBUILD_NOPEDANTIC=1 make -C $(KBUILD_DIR) M=`pwd` clean
 
 install:
 	install -D -m 755 wl.ko $(MDEST_DIR)

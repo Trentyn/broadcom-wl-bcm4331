@@ -64,20 +64,23 @@ install_bootstrap_dependencies() {
 clone_or_update_repo() {
     if [ -d "$INSTALL_DIR/.git" ]; then
         log "Updating existing checkout in $INSTALL_DIR"
-        git -C "$INSTALL_DIR" fetch --depth 1 origin "${REF:-HEAD}"
+        git -C "$INSTALL_DIR" remote set-url origin "$REPO_URL"
     else
         if [ -e "$INSTALL_DIR" ]; then
             die "$INSTALL_DIR already exists but is not a git checkout. Set INSTALL_DIR to another path."
         fi
 
         log "Cloning $REPO_URL into $INSTALL_DIR"
-        git clone --depth 1 "$REPO_URL" "$INSTALL_DIR"
+        git init -q "$INSTALL_DIR"
+        git -C "$INSTALL_DIR" remote add origin "$REPO_URL"
     fi
 
-    if [ -n "$REF" ]; then
-        log "Checking out $REF"
-        git -C "$INSTALL_DIR" checkout --detach "$REF"
-    fi
+    # Always switch the working tree to what was just fetched; a bare fetch
+    # would leave an older checkout (and its install.sh) in place.
+    log "Fetching ${REF:-latest}"
+    git -C "$INSTALL_DIR" fetch --depth 1 origin "${REF:-HEAD}"
+    git -C "$INSTALL_DIR" checkout -q --force --detach FETCH_HEAD
+    log "Using commit $(git -C "$INSTALL_DIR" rev-parse --short HEAD)"
 }
 
 run_installer() {

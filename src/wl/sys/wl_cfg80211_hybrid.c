@@ -1561,6 +1561,17 @@ wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	return err;
 }
 
+/* pmkid_list_t ends in pmkid[1], but struct wl_cfg80211_pmk_list reserves
+ * MAXPMKID entries in total. Address them from the start of the containing
+ * struct so UBSAN and FORTIFY see the real size.
+ */
+static inline pmkid_t *
+wl_pmkid(struct wl_cfg80211_pmk_list *pmk_list, int i)
+{
+	return (pmkid_t *)((u8 *)pmk_list +
+		offsetof(struct wl_cfg80211_pmk_list, pmkids.pmkid)) + i;
+}
+
 static __used s32
 wl_update_pmklist(struct net_device *dev, struct wl_cfg80211_pmk_list *pmk_list, s32 err)
 {
@@ -1569,9 +1580,9 @@ wl_update_pmklist(struct net_device *dev, struct wl_cfg80211_pmk_list *pmk_list,
 	WL_DBG(("No of elements %d\n", pmk_list->pmkids.npmkid));
 	for (i = 0; i < pmk_list->pmkids.npmkid; i++) {
 		WL_DBG(("PMKID[%d]: %pM =\n", i,
-			&pmk_list->pmkids.pmkid[i].BSSID));
+			&wl_pmkid(pmk_list, i)->BSSID));
 		for (j = 0; j < WPA2_PMKID_LEN; j++) {
-			WL_DBG(("%02x\n", pmk_list->pmkids.pmkid[i].PMKID[j]));
+			WL_DBG(("%02x\n", wl_pmkid(pmk_list, i)->PMKID[j]));
 		}
 	}
 	if (!err) {
@@ -1592,21 +1603,20 @@ wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	int i;
 
 	for (i = 0; i < wl->pmk_list->pmkids.npmkid; i++)
-		if (!memcmp(pmksa->bssid, &wl->pmk_list->pmkids.pmkid[i].BSSID, ETHER_ADDR_LEN))
+		if (!memcmp(pmksa->bssid, &wl_pmkid(wl->pmk_list, i)->BSSID, ETHER_ADDR_LEN))
 			break;
 	if (i < WL_NUM_PMKIDS_MAX) {
-		memcpy(&wl->pmk_list->pmkids.pmkid[i].BSSID, pmksa->bssid, ETHER_ADDR_LEN);
-		memcpy(&wl->pmk_list->pmkids.pmkid[i].PMKID, pmksa->pmkid, WPA2_PMKID_LEN);
+		memcpy(&wl_pmkid(wl->pmk_list, i)->BSSID, pmksa->bssid, ETHER_ADDR_LEN);
+		memcpy(&wl_pmkid(wl->pmk_list, i)->PMKID, pmksa->pmkid, WPA2_PMKID_LEN);
 		if (i == wl->pmk_list->pmkids.npmkid)
 			wl->pmk_list->pmkids.npmkid++;
 	} else {
 		err = -EINVAL;
 	}
-	WL_DBG(("set_pmksa,IW_PMKSA_ADD - PMKID: %pM =\n",
-		&wl->pmk_list->pmkids.pmkid[wl->pmk_list->pmkids.npmkid].BSSID));
+	/* Print the entry that was requested; pmkid[npmkid] is one past the end. */
+	WL_DBG(("set_pmksa,IW_PMKSA_ADD - PMKID: %pM =\n", pmksa->bssid));
 	for (i = 0; i < WPA2_PMKID_LEN; i++) {
-		WL_DBG(("%02x\n",
-			wl->pmk_list->pmkids.pmkid[wl->pmk_list->pmkids.npmkid].PMKID[i]));
+		WL_DBG(("%02x\n", pmksa->pmkid[i]));
 	}
 
 	err = wl_update_pmklist(dev, wl->pmk_list, err);
@@ -1633,16 +1643,16 @@ wl_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	for (i = 0; i < wl->pmk_list->pmkids.npmkid; i++)
-		if (!memcmp(pmksa->bssid, &wl->pmk_list->pmkids.pmkid[i].BSSID, ETHER_ADDR_LEN))
+		if (!memcmp(pmksa->bssid, &wl_pmkid(wl->pmk_list, i)->BSSID, ETHER_ADDR_LEN))
 			break;
 
 	if ((wl->pmk_list->pmkids.npmkid > 0) && (i < wl->pmk_list->pmkids.npmkid)) {
-		memset(&wl->pmk_list->pmkids.pmkid[i], 0, sizeof(pmkid_t));
+		memset(wl_pmkid(wl->pmk_list, i), 0, sizeof(pmkid_t));
 		for (; i < (wl->pmk_list->pmkids.npmkid - 1); i++) {
-			memcpy(&wl->pmk_list->pmkids.pmkid[i].BSSID,
-			       &wl->pmk_list->pmkids.pmkid[i + 1].BSSID, ETHER_ADDR_LEN);
-			memcpy(&wl->pmk_list->pmkids.pmkid[i].PMKID,
-			       &wl->pmk_list->pmkids.pmkid[i + 1].PMKID, WPA2_PMKID_LEN);
+			memcpy(&wl_pmkid(wl->pmk_list, i)->BSSID,
+			       &wl_pmkid(wl->pmk_list, i + 1)->BSSID, ETHER_ADDR_LEN);
+			memcpy(&wl_pmkid(wl->pmk_list, i)->PMKID,
+			       &wl_pmkid(wl->pmk_list, i + 1)->PMKID, WPA2_PMKID_LEN);
 		}
 		wl->pmk_list->pmkids.npmkid--;
 	} else {
@@ -3017,7 +3027,10 @@ s32 wl_cfg80211_up(struct net_device *ndev)
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 
 	wl_set_mode(ndev, wdev->iftype);
-	wl_dev_intvar_set(ndev, "band", 2);	/* force 2.4GHz only */
+	/* 2.4GHz-only is enforced by not registering the 5GHz band with
+	 * cfg80211 (wl_update_wiphybands). The blob has no "band" iovar, so
+	 * setting it here only failed with -EOPNOTSUPP on every interface up.
+	 */
 	err = wl_update_wiphybands(wl);
 	if (err) {
 		return err;

@@ -1922,6 +1922,7 @@ _wl_set_multicast_list(struct net_device *dev)
 	wl_info_t *wl;
 	int i, buflen;
 	struct maclist *maclist;
+	struct ether_addr *ea;
 	int allmulti;
 
 	if (!dev)
@@ -1939,6 +1940,12 @@ _wl_set_multicast_list(struct net_device *dev)
 			return;
 		}
 
+		/* struct maclist ends in ea[1], but the buffer holds MAXMULTILIST
+		 * entries. Address them from the start of the allocation so UBSAN
+		 * and FORTIFY see the real buffer size.
+		 */
+		ea = (struct ether_addr *)((uchar *)maclist + offsetof(struct maclist, ea));
+
 		i = 0;
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 34)
 		for (mclist = dev->mc_list; mclist && (i < dev->mc_count); mclist = mclist->next) {
@@ -1947,7 +1954,7 @@ _wl_set_multicast_list(struct net_device *dev)
 				i = 0;
 				break;
 			}
-			bcopy(mclist->dmi_addr, &maclist->ea[i++], ETHER_ADDR_LEN);
+			bcopy(mclist->dmi_addr, &ea[i++], ETHER_ADDR_LEN);
 		}
 #else
 		netdev_for_each_mc_addr(ha, dev) {
@@ -1956,7 +1963,7 @@ _wl_set_multicast_list(struct net_device *dev)
 				i = 0;
 				break;
 			}
-			bcopy(ha->addr, &maclist->ea[i++], ETHER_ADDR_LEN);
+			bcopy(ha->addr, &ea[i++], ETHER_ADDR_LEN);
 		}
 #endif 
 		maclist->count = i;

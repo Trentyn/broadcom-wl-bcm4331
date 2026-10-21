@@ -31,8 +31,8 @@ verify_build() {
     local kernel="$1"
 
     echo "==> Verifying build for ${kernel}..."
-    make -C "/lib/modules/${kernel}/build" M="$SCRIPT_DIR" cmd_objtool= clean >/dev/null
-    make -C "/lib/modules/${kernel}/build" M="$SCRIPT_DIR" cmd_objtool=
+    make -C "/lib/modules/${kernel}/build" M="$SCRIPT_DIR" clean >/dev/null
+    make -C "/lib/modules/${kernel}/build" M="$SCRIPT_DIR"
     verified_any=1
 }
 
@@ -46,7 +46,7 @@ verify_runtime() {
         exit 1
     fi
 
-    if ! lsmod | grep -q '^wl\b'; then
+    if [[ ! -d /sys/module/wl ]]; then
         echo "wl is not currently loaded." >&2
         exit 1
     fi
