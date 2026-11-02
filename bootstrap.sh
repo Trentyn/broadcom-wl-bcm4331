@@ -52,13 +52,15 @@ install_bootstrap_dependencies() {
         return
     fi
 
-    if ! have apt-get; then
-        die "apt-get was not found. This installer currently supports Debian/Ubuntu-based systems."
-    fi
-
     log "Installing bootstrap dependencies:$missing"
-    as_root apt-get update
-    as_root apt-get install -y ca-certificates curl git
+    if have apt-get; then
+        as_root apt-get update
+        as_root apt-get install -y ca-certificates curl git
+    elif have dnf; then
+        as_root dnf install -y ca-certificates curl git-core
+    else
+        die "neither apt-get nor dnf was found. This installer supports Debian/Ubuntu and Fedora."
+    fi
 }
 
 clone_or_update_repo() {
@@ -90,7 +92,15 @@ run_installer() {
     as_root bash "$INSTALL_DIR/install.sh"
 }
 
-require_root_access
-install_bootstrap_dependencies
-clone_or_update_repo
-run_installer
+# Parse the whole script before running anything. With `curl | sh`, Fedora's
+# sh (bash) reads the script from stdin as it goes, so a child process reading
+# stdin could swallow the remaining lines. This also protects against running
+# a truncated download.
+main() {
+    require_root_access
+    install_bootstrap_dependencies
+    clone_or_update_repo
+    run_installer
+}
+
+main "$@"

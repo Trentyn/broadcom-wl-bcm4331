@@ -150,6 +150,21 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs *ptregs);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
 #include <net/lib80211.h>
 #endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
+#include <linux/string.h>
+/* Linux 7.2 removed strncpy(); osl_strncpy() still has to zero-pad for the blob. */
+static inline char *wl_strncpy(char *d, const char *s, size_t n)
+{
+	size_t len = strnlen(s, n);
+
+	memcpy(d, s, len);
+	memset(d + len, 0, n - len);
+	return d;
+}
+#define strncpy(d, s, n) wl_strncpy((d), (s), (n))
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
 #include <linux/ieee80211.h>
 #else

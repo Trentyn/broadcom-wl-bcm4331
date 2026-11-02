@@ -1857,18 +1857,66 @@ static int wl_cfg80211_resume(struct wiphy *wiphy)
 }
 #endif 
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
+/*
+ * Linux 7.1 passes a wireless_dev to these ops, because some interface types
+ * have no netdev. Every wdev this driver registers is backed by a netdev.
+ */
+static int
+wl_cfg80211_wdev_get_station(struct wiphy *wiphy, struct wireless_dev *wdev,
+                             const u8 *mac, struct station_info *sinfo)
+{
+	return wl_cfg80211_get_station(wiphy, wdev->netdev, mac, sinfo);
+}
+
+static int
+wl_cfg80211_wdev_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
+                         int link_id, u8 key_idx, bool pairwise, const u8 *mac_addr,
+                         struct key_params *params)
+{
+	return wl_cfg80211_add_key(wiphy, wdev->netdev, link_id, key_idx, pairwise,
+	                           mac_addr, params);
+}
+
+static int
+wl_cfg80211_wdev_del_key(struct wiphy *wiphy, struct wireless_dev *wdev,
+                         int link_id, u8 key_idx, bool pairwise, const u8 *mac_addr)
+{
+	return wl_cfg80211_del_key(wiphy, wdev->netdev, link_id, key_idx, pairwise, mac_addr);
+}
+
+static int
+wl_cfg80211_wdev_get_key(struct wiphy *wiphy, struct wireless_dev *wdev,
+                         int link_id, u8 key_idx, bool pairwise, const u8 *mac_addr,
+                         void *cookie, void (*callback) (void *cookie, struct key_params *params))
+{
+	return wl_cfg80211_get_key(wiphy, wdev->netdev, link_id, key_idx, pairwise,
+	                           mac_addr, cookie, callback);
+}
+#endif
+
 static struct cfg80211_ops wl_cfg80211_ops = {
 	.change_virtual_intf = wl_cfg80211_change_iface,
 	.scan = wl_cfg80211_scan,
 	.set_wiphy_params = wl_cfg80211_set_wiphy_params,
 	.join_ibss = wl_cfg80211_join_ibss,
 	.leave_ibss = wl_cfg80211_leave_ibss,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
+	.get_station = wl_cfg80211_wdev_get_station,
+#else
 	.get_station = wl_cfg80211_get_station,
+#endif
 	.set_tx_power = wl_cfg80211_set_tx_power,
 	.get_tx_power = wl_cfg80211_get_tx_power,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
+	.add_key = wl_cfg80211_wdev_add_key,
+	.del_key = wl_cfg80211_wdev_del_key,
+	.get_key = wl_cfg80211_wdev_get_key,
+#else
 	.add_key = wl_cfg80211_add_key,
 	.del_key = wl_cfg80211_del_key,
 	.get_key = wl_cfg80211_get_key,
+#endif
 	.set_default_key = wl_cfg80211_config_default_key,
 	.set_power_mgmt = wl_cfg80211_set_power_mgmt,
 	.connect = wl_cfg80211_connect,
