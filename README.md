@@ -25,7 +25,7 @@ Options: `REF=<branch|tag|SHA>` for the one-liner, `KERNEL_SCOPE=running` to bui
 
 ## Notes
 
-- **Dual-band networks.** A network using one name on 2.4 and 5 GHz can cause an endless reconnect loop on this card. Lock its profile to 2.4 GHz: `nmcli connection modify "SSID" wifi.band bg`.
+- **5 GHz** works, including on a network using one name on 2.4 and 5 GHz (tested on Fedora 44). Such networks have caused an endless reconnect loop in the past. If you see one, lock the profile to 2.4 GHz: `nmcli connection modify "SSID" wifi.band bg`.
 - **Real MAC address.** With a cloned MAC the WPA handshake never completes, and NetworkManager reports it as a wrong password. Networks therefore see the card's real address.
 - **objtool.** The Broadcom blob fails objtool, so the `Makefile` runs objtool on the open wrapper code and links the blob in afterwards.
 - **6.x kernels** still build but are not supported.

@@ -3067,8 +3067,8 @@ static s32 wl_update_wiphybands(struct wl_cfg80211_priv *wl)
 	phy = ((char *)&phy_list)[0];
 	WL_DBG(("%c phy\n", phy));
 
-	/* 5GHz disabled: BCM4331 wl driver fails to associate when dual-band
-	 * SSID is visible; forcing 2.4GHz-only avoids the scan/disconnect loop. */
+	/* 5GHz keeps the band table registered at attach; it is not upgraded to
+	 * __wl_band_5ghz_n here. */
 
 	return err;
 }
@@ -3080,9 +3080,8 @@ s32 wl_cfg80211_up(struct net_device *ndev)
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 
 	wl_set_mode(ndev, wdev->iftype);
-	/* 2.4GHz-only is enforced by not registering the 5GHz band with
-	 * cfg80211 (wl_update_wiphybands). The blob has no "band" iovar, so
-	 * setting it here only failed with -EOPNOTSUPP on every interface up.
+	/* The blob has no "band" iovar, so the band cannot be restricted here:
+	 * setting it only failed with -EOPNOTSUPP on every interface up.
 	 */
 	err = wl_update_wiphybands(wl);
 	if (err) {
