@@ -1987,6 +1987,11 @@ static s32 wl_alloc_wdev(struct device *dev, struct wireless_dev **rwdev)
 	}
 	set_wiphy_dev(wdev->wiphy, dev);
 	wdev->wiphy->max_scan_ssids = WL_NUM_SCAN_MAX;
+	/*
+	 * cfg80211 rejects a scan with -EINVAL if its IEs exceed this limit, and
+	 * wpa_supplicant adds IEs to its scans. wl_cfg80211_scan() ignores them.
+	 */
+	wdev->wiphy->max_scan_ie_len = WL_SCAN_IE_LEN_MAX;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33)
 	wdev->wiphy->max_num_pmkids = WL_NUM_PMKIDS_MAX;
 #endif

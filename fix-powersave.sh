@@ -68,6 +68,18 @@ tee /etc/NetworkManager/conf.d/wifi-powersave-off.conf > /dev/null <<'CONF'
 wifi.powersave = 2
 CONF
 
+# With a cloned MAC the WPA handshake never completes on wl, which NetworkManager
+# reports as a wrong password. Fedora clones the MAC by default (stable-ssid).
+tee /etc/NetworkManager/conf.d/broadcom-wl-mac.conf > /dev/null <<'CONF'
+[device-broadcom-wl-mac]
+match-device=driver:wl
+wifi.scan-rand-mac-address=no
+
+[connection-broadcom-wl-mac]
+match-device=driver:wl
+wifi.cloned-mac-address=permanent
+CONF
+
 echo "==> Writing TLP config..."
 # TLP defaults to WIFI_PWR_ON_BAT=on and reapplies it after NetworkManager and
 # on every AC/battery switch, which turns power saving back on.
@@ -100,7 +112,9 @@ case "$1/$2" in
   post/*)
     PATH=/usr/sbin:/usr/bin:/sbin:/bin
     nmcli radio wifi off >/dev/null 2>&1 || true
-    systemctl stop NetworkManager.service >/dev/null 2>&1 || true
+    # A wpa_supplicant that outlives the module falls back to WEXT, which Fedora
+    # kernels lack, and can no longer scan. NetworkManager starts it again.
+    systemctl stop NetworkManager.service wpa_supplicant.service >/dev/null 2>&1 || true
     modprobe -r wl >/dev/null 2>&1 || true
     sleep 2
     modprobe wl >/dev/null 2>&1 || true
@@ -127,7 +141,7 @@ set -u
 CONNECTION="${1:-}"
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 
-systemctl stop NetworkManager.service
+systemctl stop NetworkManager.service wpa_supplicant.service
 modprobe -r wl >/dev/null 2>&1 || true
 sleep 2
 modprobe wl

@@ -84,6 +84,7 @@ do {										\
 } while (0)
 
 #define WL_NUM_SCAN_MAX		1
+#define WL_SCAN_IE_LEN_MAX	2048
 #define WL_NUM_PMKIDS_MAX	MAXPMKID	
 #define WL_SCAN_BUF_BASE 		(16*1024)
 #define WL_TLV_INFO_MAX 		1024

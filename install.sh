@@ -240,6 +240,14 @@ run_smoke_checks() {
         return
     fi
 
+    # wl may not take over a card that bcma was driving until the next boot, and
+    # forcing it through the sysfs bind file has caused a kernel panic.
+    if ((BCMA_WAS_LOADED)) && [[ -d /sys/module/wl ]]; then
+        echo "==> wl is installed but has not attached to the card yet."
+        echo "==> Reboot to finish. Do not bind wl to the card by hand: it can panic the kernel."
+        return
+    fi
+
     echo "Smoke check failed: wl or its network interface did not become ready."
     echo "Loaded modules matching wl:"
     lsmod | grep '^wl\b' || true
@@ -289,6 +297,10 @@ blacklist ssb
 CONF
 
 echo "==> Unloading conflicting modules..."
+BCMA_WAS_LOADED=0
+if [[ -d /sys/module/bcma ]]; then
+    BCMA_WAS_LOADED=1
+fi
 modprobe -r b43 b43legacy brcmsmac brcmfmac bcma ssb 2>/dev/null || true
 
 echo "==> Loading wl..."
