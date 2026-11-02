@@ -12,7 +12,7 @@ This repository contains code under three different licenses.
    (ISC-style) license in the header of each file. Modifications made in
    this repository are released under the same terms.
 
-3. Everything else (install.sh, bootstrap.sh, fix-powersave.sh, verify.sh,
+3. Everything else (install.sh, broadcom.sh, fix-powersave.sh, verify.sh,
    Makefile, dkms.conf, README.md): ISC License, below.
 
 -------------------------------------------------------------------------------
